@@ -1,20 +1,43 @@
-﻿// _beginThreadex的用法.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
-//
+﻿// crt_begthrdex.cpp
+// compile with: /MT
+/*
+    以下示例代码演示了如何通过同步API WaitForSingleObject使用_beginthreadex返回的线程句柄。 
+    主线程在继续之前等待第二个线程终止。当第二个线程调用_endthreadex时，它将导致其线程对象进入
+    信号状态。这允许主线程继续运行。不能使用_beginthread和_endthread来完成此操作，
+    因为_endthread调用CloseHandle，它会在可以将其设置为信号状态之前破坏线程对象。
+*/
+#include <windows.h>
+#include <stdio.h>
+#include <process.h>
 
-#include <iostream>
+unsigned Counter;
+unsigned __stdcall SecondThreadFunc(void* pArguments)
+{
+    printf("In second thread...\n");
+
+    while (Counter < 1000000)
+        Counter++;
+
+    _endthreadex(0);
+    return 0;
+}
 
 int main()
 {
-    std::cout << "Hello World!\n";
+    HANDLE hThread;
+    unsigned threadID;
+
+    printf("Creating second thread...\n");
+
+    // Create the second thread.
+    hThread = (HANDLE)_beginthreadex(NULL, 0, &SecondThreadFunc, NULL, 0, &threadID);
+
+    /*
+        等待第二个线程终止。如果注释掉下面的行，Counter将不正确，
+        因为线程尚未终止，而且Counter很可能还没有增加到1000000
+    */
+    WaitForSingleObject(hThread, INFINITE);
+    printf("Counter should be 1000000; it is-> %d\n", Counter);
+    // Destroy the thread object.
+    CloseHandle(hThread);
 }
-
-// 运行程序: Ctrl + F5 或调试 >“开始执行(不调试)”菜单
-// 调试程序: F5 或调试 >“开始调试”菜单
-
-// 入门使用技巧: 
-//   1. 使用解决方案资源管理器窗口添加/管理文件
-//   2. 使用团队资源管理器窗口连接到源代码管理
-//   3. 使用输出窗口查看生成输出和其他消息
-//   4. 使用错误列表窗口查看错误
-//   5. 转到“项目”>“添加新项”以创建新的代码文件，或转到“项目”>“添加现有项”以将现有代码文件添加到项目
-//   6. 将来，若要再次打开此项目，请转到“文件”>“打开”>“项目”并选择 .sln 文件
